@@ -34,7 +34,7 @@ class Mongo {
 		$command['reduce'] = new \MongoCode($reduce);
 		$response = self::$db->command($command);
 		if ($response['ok'] != 1) {
-			throw new \Exception(print_r($response['assertionCode'], true));
+			throw new \Exception(print_r($response, true));
 		}
 		if (!$fetch) {
 			return true;	
