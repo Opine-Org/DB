@@ -47,4 +47,8 @@ class Mongo {
 		}
 		return $this->collection($collection);
 	}
+
+	public function documentStage ($dbURI, $document) {
+		return new Document($this, $dbURI, $document);
+	}
 }
