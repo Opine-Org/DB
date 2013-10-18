@@ -11,10 +11,8 @@ class Mongo {
 
 	private function connect () {
 		if (self::$db === false) {
-			$config = $this->config;
-			$config = $config::db();
-			$client = new \MongoClient($config['conn']);
-			self::$db = new \MongoDB($client, $config['name']);
+			$client = new \MongoClient($this->config->db['conn']);
+			self::$db = new \MongoDB($client, $this->config->db['name']);
 		}
 	}
 
