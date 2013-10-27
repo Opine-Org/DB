@@ -36,21 +36,50 @@ class Document {
 		list($this->collection, $this->id) = explode(':', $dbURI, 2);
 	}
 
-	public function upsert () {
+	public function upsert ($authContext='manager') {
 		if (substr_count((string)$this->id, '/') > 0) {
 			$this->mongoIdToOffset();
 		}
 		if (isset($this->document['_id'])) { unset ($this->document['_id']); }
 		if (isset($this->document['id'])) { unset ($this->document['id']); }
-		$this->db->collection($this->collection)->update(
+		
+		//user id
+		if (isset($_SESSION['auth']) && isset($_SESSION['auth'][$authContext]) && isset($_SESSION['auth'][$authContext]['_id'])) {
+			$user = $_SESSION['auth'][$authContext]['_id'];
+		}
+
+		//handle modification / version history
+		$check = $this->db->collection($this->collection)->findOne(['_id' => $this->db->id($this->id)]);
+		if (isset($check['_id'])) {
+			$this->document['modified_date'] = new \MongoDate(strtotime('now'));
+			if ($user !== false) {
+				$this->document['modified_user'] = $this->db->id($user);
+			}
+		} else {
+			$this->document['created_date'] = new \MongoDate(strtotime('now'));
+			$this->document['modified_date'] = $this->document['created_date'];
+			if (!isset($this->document['acl'])) {
+				$this->document['acl'] = ['public'];
+			}
+			if ($user !== false) {
+				$this->document['created_user'] = $this->db->id($user);
+			}
+		}
+
+		$result = $this->db->collection($this->collection)->update(
 			['_id' => $this->db->id($this->id)], 
 			['$set' => (array)$this->document], 
 			['safe' => true, 'fsync' => true, 'upsert' => true]
 		);
+
+		var_dump($result);
+		exit;
+
+		return $result;
 	}
 
-	public function delete () {
-
+	public function delete ($collection, $id) {
+		$this->db->collection($colletion)->remove(['_id' => $this->db->id($id)], ['justOne' => true]);
 	}
 
 	public function __get ($field) {
