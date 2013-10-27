@@ -29,10 +29,12 @@ class Document {
 	private $db;
 	private $id;
 	private $dbURI;
+	private $topic;
 
-	public function __construct ($db, $dbURI, $document) {
+	public function __construct ($db, $dbURI, $document, $topic) {
 		$this->db = $db;
 		$this->document = $document;
+		$this->topic = $topic;
 		list($this->collection, $this->id) = explode(':', $dbURI, 2);
 	}
 
@@ -88,13 +90,26 @@ class Document {
 				'collection' => $this->collection,
 				'document' => $check
 			]);
+
+			//attempt indexing
+			$searchIndexContext = [
+				'type' => $this->collection,
+				'id' => (string)$this->id
+			];
+			$this->topic->publish('searchIndexUpsert', $searchIndexContext);
 		}
 
 		return $result;
 	}
 
 	public function delete ($collection, $id) {
-		$this->db->collection($colletion)->remove(['_id' => $this->db->id($id)], ['justOne' => true]);
+		$result = $this->db->collection($colletion)->remove(['_id' => $this->db->id($id)], ['justOne' => true]);
+		$searchIndexContext = [
+			'type' => $collection,
+			'id' => (string)$id
+		];
+		$this->topic->publish('searchIndexDelete', $searchIndexDelete);
+		return $result;
 	}
 
 	public function __get ($field) {

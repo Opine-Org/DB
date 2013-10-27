@@ -27,9 +27,11 @@ namespace DB;
 class Mongo {
 	private static $db = false;
 	private $config;
+	private $topic;
 
-	public function __construct ($config) {
+	public function __construct ($config, $topic) {
 		$this->config = $config;
+		$this->topic = $topic;
 	}
 
 	private function connect () {
@@ -70,6 +72,6 @@ class Mongo {
 	}
 
 	public function documentStage ($dbURI, $document) {
-		return new Document($this, $dbURI, $document);
+		return new Document($this, $dbURI, $document, $this->topic);
 	}
 }
