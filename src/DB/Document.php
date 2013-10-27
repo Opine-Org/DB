@@ -44,6 +44,7 @@ class Document {
 		if (isset($this->document['id'])) { unset ($this->document['id']); }
 		
 		//user id
+		$user = false;
 		if (isset($_SESSION['auth']) && isset($_SESSION['auth'][$authContext]) && isset($_SESSION['auth'][$authContext]['_id'])) {
 			$user = $_SESSION['auth'][$authContext]['_id'];
 		}
@@ -55,15 +56,24 @@ class Document {
 			if ($user !== false) {
 				$this->document['modified_user'] = $this->db->id($user);
 			}
+			$this->document['revision'] = (isset($check['revision']) ? ($check['revision'] + 1) : 1);
 		} else {
 			$this->document['created_date'] = new \MongoDate(strtotime('now'));
 			$this->document['modified_date'] = $this->document['created_date'];
-			if (!isset($this->document['acl'])) {
-				$this->document['acl'] = ['public'];
-			}
+			$this->document['revision'] = 1;
 			if ($user !== false) {
 				$this->document['created_user'] = $this->db->id($user);
+				$this->document['modified_user'] = $this->document['created_user'];
 			}
+		}
+		if (!isset($this->document['acl'])) {
+			$this->document['acl'] = ['public'];
+		}
+		if (!isset($this->document['status'])) {
+			$this->document['status'] = 'published';
+		}
+		if (!isset($this->document['featured'])) {
+			$this->document['featured'] = 'f';
 		}
 
 		$result = $this->db->collection($this->collection)->update(
@@ -72,8 +82,13 @@ class Document {
 			['safe' => true, 'fsync' => true, 'upsert' => true]
 		);
 
-		var_dump($result);
-		exit;
+		//versions
+		if (isset($check['_id']) && isset($result['ok']) && $result['ok'] == true) {
+			$this->db->collection('versions')->save([
+				'collection' => $this->collection,
+				'document' => $check
+			]);
+		}
 
 		return $result;
 	}

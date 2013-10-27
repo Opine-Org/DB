@@ -70,6 +70,6 @@ class Mongo {
 	}
 
 	public function documentStage ($dbURI, $document) {
-		return new Document($this, $dbURI, $document, $this->authentication);
+		return new Document($this, $dbURI, $document);
 	}
 }
