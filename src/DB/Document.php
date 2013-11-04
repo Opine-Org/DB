@@ -25,6 +25,7 @@
 namespace DB;
 
 class Document {
+	private $collection;
 	private $document;
 	private $db;
 	private $id;
@@ -38,7 +39,7 @@ class Document {
 		list($this->collection, $this->id) = explode(':', $dbURI, 2);
 	}
 
-	public function upsert ($authContext='manager') {
+	public function upsert ($authContext='Manager') {
 		if (substr_count((string)$this->id, '/') > 0) {
 			$this->mongoIdToOffset();
 		}
@@ -102,14 +103,26 @@ class Document {
 		return $result;
 	}
 
-	public function delete ($collection, $id) {
-		$result = $this->db->collection($colletion)->remove(['_id' => $this->db->id($id)], ['justOne' => true]);
+	public function remove () {
+		$result = $this->db->collection($this->collection)->remove(['_id' => $this->db->id($this->id)], ['justOne' => true]);
 		$searchIndexContext = [
-			'type' => $collection,
-			'id' => (string)$id
+			'type' => $this->collection,
+			'id' => (string)$this->id
 		];
-		$this->topic->publish('searchIndexDelete', $searchIndexDelete);
+		$this->topic->publish('searchIndexDelete', $searchIndexContext);
 		return $result;
+	}
+
+	public function current () {
+		return $this->db->collection($this->collection)->findOne(['_id' => $this->db->id($this->id)]);
+	}
+
+	public function collection () {
+		return $this->collection;
+	}
+
+	public function id () {
+		return $this->id;
 	}
 
 	public function __get ($field) {
