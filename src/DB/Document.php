@@ -31,12 +31,19 @@ class Document {
 	private $id;
 	private $dbURI;
 	private $topic;
+	private $embeddedPath = false;
+	private $embeddedId = false;
+	private $embeddedDocument = [];
 
 	public function __construct ($db, $dbURI, $document, $topic) {
 		$this->db = $db;
 		$this->document = $document;
 		$this->topic = $topic;
+		$this->dbURI = $dbURI;
 		list($this->collection, $this->id) = explode(':', $dbURI, 2);
+		if (substr_count($this->id, ':')) {
+			$this->embeddedPath = $this->idToOffset();
+		}
 	}
 
 	public function upsert ($authContext='Manager') {
@@ -53,7 +60,12 @@ class Document {
 		}
 
 		//handle modification / version history
-		$check = $this->db->collection($this->collection)->findOne(['_id' => $this->db->id($this->id)]);
+		if ($this->embeddedPath === false) {
+			$check = $this->db->collection($this->collection)->findOne(['_id' => $this->db->id($this->id)]);
+		} else {
+			$check = $this->embeddedDocument;
+		}
+		$this->document['dbURI'] = $this->dbURI;
 		if (isset($check['_id'])) {
 			$this->document['modified_date'] = new \MongoDate(strtotime('now'));
 			if ($user !== false) {
@@ -78,12 +90,20 @@ class Document {
 		if (!isset($this->document['featured'])) {
 			$this->document['featured'] = 'f';
 		}
-
-		$result = $this->db->collection($this->collection)->update(
-			['_id' => $this->db->id($this->id)], 
-			['$set' => (array)$this->document], 
-			['safe' => true, 'fsync' => true, 'upsert' => true]
-		);
+		if ($this->embeddedPath === false) {
+			$result = $this->db->collection($this->collection)->update(
+				['_id' => $this->db->id($this->id)], 
+				['$set' => (array)$this->document], 
+				['safe' => true, 'fsync' => true, 'upsert' => true]
+			);
+		} else {
+			$this->document['_id'] = $this->embeddedId;
+			$result = $this->db->collection($this->collection)->update(
+				['_id' => $this->db->id($this->id)], 
+				['$set' => [$this->embeddedPath => (array)$this->document]], 
+				['safe' => true, 'fsync' => true, 'upsert' => true]
+			);
+		}
 
 		//versions
 		if (isset($check['_id']) && isset($result['ok']) && $result['ok'] == true) {
@@ -114,7 +134,46 @@ class Document {
 	}
 
 	public function current () {
-		return $this->db->collection($this->collection)->findOne(['_id' => $this->db->id($this->id)]);
+		$filter = [];
+		if (substr_count($this->dbURI, ':') > 0) {
+            $parts = explode(':', $this->dbURI);
+            $collection = array_shift($parts);
+            $id = array_shift($parts);
+            if (count($parts) > 0) {
+	            $filter = [$parts[0]];
+	        }
+        }
+		$document = $this->db->collection($this->collection)->findOne(['_id' => $this->db->id($id)], $filter);
+		if (!isset($document['_id'])) {
+			return [];
+		}
+		$partCount = count($parts);
+		if ($partCount == 0) {
+			return $document;
+		}
+        for ($i=0; $i < $partCount; $i++) {
+        	$key = $parts[$i];
+        	$i++;
+        	$value = $parts[$i];
+        	if (!isset($document[$key]) || !is_array($document[$key])) {
+        		return [];
+        	}
+        	$hit = false;
+        	for ($j=0; $j < count($document[$key]); $j++) {
+        		if (!isset($document[$key][$j]) || !isset($document[$key][$j]['_id'])) {
+        			break;
+        		}
+        		if ($value == (string)$document[$key][$j]['_id']) {
+        			$hit = true;
+        			$document = $document[$key][$j];
+        			break;
+        		}
+        	}
+        	if ($hit == false) {
+        		return [];
+        	}
+        }
+        return $document;
 	}
 
 	public function collection () {
@@ -132,35 +191,49 @@ class Document {
 		return $this->document[$field];
 	}
 
-	private function mongoIdToOffset () {
-        //takes input like collection:ID/field/ID/field/ID/field
-        $parts = explode('/', $this->id);
-        $id = array_shift($parts);
+	private function idToOffset () {
+        $parts = explode(':', $this->id);
+        $this->id = array_shift($parts);
         $count = count($parts);
         $out = '';
-        $document = $this->db($this->collection)->findOne(['_id' => new \MongoId((string)$id)], [$parts[0]]);
-        $i=0;
-        foreach ($document[$parts[0]] as &$sub1) {
-            if ((string)$sub1['_id'] == (string)$parts[1]) {
-                $out .= $parts[0] . '.' . $i;
-                if ($count > 2) {
-                    $out .= '.' . $parts[2];
-                    $j=0;
-                    if (!isset($parts[3]) || !isset($sub1[$parts[2]]) || !is_array($sub1[$parts[2]]) || empty($sub1[$parts[2]])) {
-                        break;
-                    }
-                    foreach ($sub1[$parts[2]] as $sub2) {
-                        if ((string)$sub2['_id'] == (string)$parts[3]) {
-                            $out .= '.' . $j;
-                            break;
-                        }
-                        $j++;
-                    }
-                }
-                break;
-            }
-            $i++;
+        $document = $this->db->collection($this->collection)->findOne(['_id' => new \MongoId((string)$this->id)], [$parts[0]]);
+        if (!isset($document['_id'])) {
+        	throw new \Exception('Can not find root document: ' . $this->collection . ':' . $this->id . ':' . $parts[0]);
         }
-        $this->id = $out;
+        $partCount = count($parts);
+        for ($i=0; $i < $partCount; $i++) {
+        	$key = $parts[$i];
+        	$i++;
+        	$value = $parts[$i];
+        	$out .= $key . '.';
+        	if (!isset($document[$key]) || !is_array($document[$key])) {
+        		$out .= '0.';
+        		$document = [];
+        		break;
+        	}
+        	$hit = false;
+        	for ($j=0; $j < count($document[$key]); $j++) {
+        		if (!isset($document[$key][$j]) || !isset($document[$key][$j]['_id'])) {
+        			break;
+        		}
+        		if ($value == (string)$document[$key][$j]['_id']) {
+        			$hit = true;
+        			$out .= $j . '.';
+        			$document = $document[$key][$j];
+        			break;
+        		}
+        	}
+        	if ($hit == false) {
+        		$document = [];
+        		$out .= $j . '.';
+        		break;
+        	}
+        }
+        if ($partCount != count(explode('.', trim($out, '.')))) {
+        	throw new \Exception('Mis-matched embedded document query');
+        }
+        $this->embeddedDocument = $document;
+        $this->embeddedId = array_pop($parts);
+        return substr($out, 0, -1);
     }
 }
