@@ -34,6 +34,7 @@ class Document {
 	private $embeddedPath = false;
 	private $embeddedId = false;
 	private $embeddedDocument = [];
+	private $embeddedMode = 'update';
 
 	public function __construct ($db, $dbURI, $document, $topic) {
 		$this->db = $db;
@@ -47,9 +48,6 @@ class Document {
 	}
 
 	public function upsert ($authContext='Manager') {
-		if (substr_count((string)$this->id, '/') > 0) {
-			$this->mongoIdToOffset();
-		}
 		if (isset($this->document['_id'])) { unset ($this->document['_id']); }
 		if (isset($this->document['id'])) { unset ($this->document['id']); }
 		
@@ -97,12 +95,24 @@ class Document {
 				['safe' => true, 'fsync' => true, 'upsert' => true]
 			);
 		} else {
-			$this->document['_id'] = $this->embeddedId;
-			$result = $this->db->collection($this->collection)->update(
-				['_id' => $this->db->id($this->id)], 
-				['$set' => [$this->embeddedPath => (array)$this->document]], 
-				['safe' => true, 'fsync' => true, 'upsert' => true]
-			);
+			$this->document['_id'] = $this->db->id($this->embeddedId);
+			if ($this->embeddedMode == 'update') {
+				$result = $this->db->collection($this->collection)->update(
+					['_id' => $this->db->id($this->id)], 
+					['$set' => [$this->embeddedPath => (array)$this->document]], 
+					['safe' => true, 'fsync' => true, 'upsert' => true]
+				);
+			} elseif ($this->embeddedMode == 'insert') {
+				$embeddedPath = $this->embeddedPath;
+				$embeddedPath = explode('.', $embeddedPath);
+				array_pop($embeddedPath);
+				$embeddedPath = implode('.', $embeddedPath);
+				$result = $this->db->collection($this->collection)->update(
+					['_id' => $this->db->id($this->id)], 
+					['$push' => [$embeddedPath => (array)$this->document]], 
+					['safe' => true, 'fsync' => true, 'upsert' => true]
+				);
+			}
 		}
 
 		//versions
@@ -124,7 +134,25 @@ class Document {
 	}
 
 	public function remove () {
-		$result = $this->db->collection($this->collection)->remove(['_id' => $this->db->id($this->id)], ['justOne' => true]);
+		$parts = [];
+		if ($this->embeddedPath !== false) {
+            $parts = explode('.', $this->embeddedPath);
+        }
+		$partCount = count($parts);
+		if ($partCount == 0) {
+			$result = $this->db->collection($this->collection)->remove(['_id' => $this->db->id($this->id)], ['justOne' => true]);
+		} else {
+			array_pop($parts);
+			$field = implode('.', $parts);
+			$result = $this->db->collection($this->collection)->update([
+					'_id' => $this->db->id($this->id)
+				], [
+					'$pull' => [
+						$field => ['_id' => $this->db->id($this->embeddedId)]
+					]
+				]
+			);
+		}
 		$searchIndexContext = [
 			'type' => $this->collection,
 			'id' => (string)$this->id
@@ -135,6 +163,7 @@ class Document {
 
 	public function current () {
 		$filter = [];
+		$parts = [];
 		if (substr_count($this->dbURI, ':') > 0) {
             $parts = explode(':', $this->dbURI);
             $collection = array_shift($parts);
@@ -196,7 +225,7 @@ class Document {
         $this->id = array_shift($parts);
         $count = count($parts);
         $out = '';
-        $document = $this->db->collection($this->collection)->findOne(['_id' => new \MongoId((string)$this->id)], [$parts[0]]);
+        $document = $this->db->collection($this->collection)->findOne(['_id' => $this->db->id($this->id)], [$parts[0]]);
         if (!isset($document['_id'])) {
         	throw new \Exception('Can not find root document: ' . $this->collection . ':' . $this->id . ':' . $parts[0]);
         }
@@ -208,12 +237,14 @@ class Document {
         	$out .= $key . '.';
         	if (!isset($document[$key]) || !is_array($document[$key])) {
         		$out .= '0.';
+        		$this->embeddedMode = 'insert';
         		$document = [];
         		break;
         	}
         	$hit = false;
         	for ($j=0; $j < count($document[$key]); $j++) {
         		if (!isset($document[$key][$j]) || !isset($document[$key][$j]['_id'])) {
+        			$this->embeddedMode = 'insert';
         			break;
         		}
         		if ($value == (string)$document[$key][$j]['_id']) {
@@ -224,6 +255,7 @@ class Document {
         		}
         	}
         	if ($hit == false) {
+        		$this->embeddedMode = 'insert';
         		$document = [];
         		$out .= $j . '.';
         		break;
