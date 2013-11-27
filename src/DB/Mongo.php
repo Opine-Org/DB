@@ -83,4 +83,29 @@ class Mongo {
 		$result = self::$db->command(['distinct' => $collection, 'key' => $key, 'query' => $query]);
 		return $result['values'];
 	}
+
+	public function fetchAllGrouped ($cursor, $key, $value, $assoc=false) {
+		$rows = [];
+		while ($cursor->hasNext()) {
+			$tmp = $cursor->getNext();
+			if (is_array($value)) {
+				if ($assoc === true) {
+					$rows[(string)$tmp[$key]] = [];
+					foreach ($value as $val) {
+						$rows[trim((string)$tmp[$key])][trim($val)] =  $tmp[$val];
+					}
+				} else {
+					foreach ($value as $val) {
+						$rows[trim((string)$tmp[$key])] .= (string)$tmp[$val] . ' ';
+					}
+					$rows[trim((string)$tmp[$key])] = trim($rows[(string)$tmp[$key]]);
+				}
+			} elseif (is_callable($value)) {
+				$rows[trim((string)$tmp[$key])] = $value($tmp);
+			} else {
+				$rows[trim((string)$tmp[$key])] = (string)$tmp[$value];
+			}
+		}
+		return $rows;
+	}
 }
