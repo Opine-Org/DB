@@ -74,4 +74,13 @@ class Mongo {
 	public function documentStage ($dbURI, $document=[]) {
 		return new Document($this, $dbURI, $document, $this->topic);
 	}
+
+	public function distinct($collection, $key, array $query=[]) {
+		if (empty($query)) {
+			$query = [];
+		}
+		$this->connect();
+		$result = self::$db->command(['distinct' => $collection, 'key' => $key, 'query' => $query]);
+		return $result['values'];
+	}
 }
