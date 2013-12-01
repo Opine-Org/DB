@@ -25,6 +25,7 @@
 namespace DB;
 
 class Mongo {
+	private $client;
 	private static $db = false;
 	private $config;
 	private $topic;
@@ -36,14 +37,25 @@ class Mongo {
 
 	private function connect () {
 		if (self::$db === false) {
-			$client = new \MongoClient($this->config->db['conn']);
-			self::$db = new \MongoDB($client, $this->config->db['name']);
+			$this->client = new \MongoClient($this->config->db['conn']);
+			self::$db = new \MongoDB($this->client, $this->config->db['name']);
 		}
+	}
+
+	public function collectionList ($system=false) {
+		$this->connect();
+		return self::$db->listCollections($system);
 	}
 
 	public function collection ($collection) {
 		$this->connect();
 		return new \MongoCollection(self::$db, $collection);
+	}
+
+	public function each ($cursor, $callback) {
+		while ($cursor->hasNext()) {
+			$callback($cursor->getNext());
+		}
 	}
 
 	public function id ($id) {
