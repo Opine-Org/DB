@@ -66,6 +66,10 @@ class Document {
 		$this->document['dbURI'] = $this->dbURI;
 		if (isset($check['_id'])) {
 			$this->document['modified_date'] = new \MongoDate(strtotime('now'));
+			if (!isset($this->document['created_date'])) {
+				$dateId = $this->db->id($this->id);
+				$this->document['created_date'] = new \MongoDate($dateId->getTimestamp());
+			}
 			if ($user !== false) {
 				$this->document['modified_user'] = $this->db->id($user);
 			}
