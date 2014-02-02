@@ -2,7 +2,7 @@
     "name": "opine/db",
     "type": "library",
     "description": "DB service wrapper for with MongoDB",
-    "keywords": ["MongoDB"],
+    "keywords": ["MongoDB", "REST"],
     "license": "MIT",
     "authors": [
         {
