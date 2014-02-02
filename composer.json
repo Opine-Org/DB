@@ -1,7 +1,7 @@
 {
-    "name": "virtuecenter/db",
+    "name": "opine/db",
     "type": "library",
-    "description": "db class for use with MongoDB",
+    "description": "DB service wrapper for with MongoDB",
     "keywords": ["MongoDB"],
     "license": "MIT",
     "authors": [
@@ -13,10 +13,10 @@
         }
     ],
     "require": {
-    	"php": ">=5.4.0",
-        "virtuecenter/config": "dev-master"
+        "php": ">=5.4.0",
+        "opine/config": "dev-master"
     },
     "autoload": {
-        "psr-0": {"DB": "src/"}
+        "psr-4": {"Opine\\": "src/"}
     }
 }

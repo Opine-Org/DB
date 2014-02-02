@@ -1,4 +1,4 @@
-db
+DB
 ==
 
-Database class for working with MongoDB
+DB service wrapper for with MongoDB
