@@ -50,6 +50,8 @@ class Migration {
             if (in_array($collectionName, ['versions'])) {
                 continue;
             }
+            echo $collectionName, '...', "\n";
+            flush();
             $this->db->each($this->db->collection($collectionName)->find()->snapshot(), function ($doc) use ($collectionName) {
                 if (isset($doc['dbURI'])) {
                     return;
@@ -57,10 +59,10 @@ class Migration {
                 $dbURI = $collectionName . ':' . (string)$doc['_id'];
                 $doc['dbURI'] = $dbURI;
                 foreach ($doc as $fieldName => &$field) {
-                    if (!is_array($field)) {
+                    if (!is_array($field) || is_object($field)) {
                         continue;
                     }
-                    if (!isset($field[0]) || !isset($field[0]['_id'])) {
+                    if (!isset($field[0]) || is_object($field[0]) || !isset($field[0]['_id'])) {
                         continue;
                     }
                     foreach ($field as &$embeddedDoc) {
