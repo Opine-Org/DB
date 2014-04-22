@@ -48,8 +48,12 @@ class Document {
     }
 
     public function upsert () {
-        if (isset($this->document['_id'])) { unset ($this->document['_id']); }
-        if (isset($this->document['id'])) { unset ($this->document['id']); }
+        $documentIdRetained = false;
+        if (isset($this->document['_id'])) {
+            $documentIdRetained = $this->document['_id'];
+            unset ($this->document['_id']);
+        }
+        //if (isset($this->document['id'])) { unset ($this->document['id']); }
         
         //user id
         $user = false;
@@ -134,6 +138,9 @@ class Document {
             $this->topic->publish('searchIndexUpsert', $searchIndexContext);
         }
 
+        if ($documentIdRetained !== false && !isset($this->document['_id'])) {
+            $this->document['_id'] = $documentIdRetained;
+        }
         return $result;
     }
 
