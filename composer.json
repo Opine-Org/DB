@@ -17,8 +17,8 @@
     ],
     "require": {
         "php": ">=5.4.0",
-        "opine\/config": "1.0.1",
-        "opine\/pubsub": "1.0.1"
+        "opine\/config": "dev-master",
+        "opine\/pubsub": "dev-master"
     },
     "autoload": {
         "psr-4": {
