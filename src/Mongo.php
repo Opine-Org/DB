@@ -58,7 +58,10 @@ class Mongo {
         }
     }
 
-    public function id ($id) {
+    public function id ($id=false) {
+        if ($id===false) {
+            return new \MongoId();
+        }
         return new \MongoId((string)$id);
     }
 

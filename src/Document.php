@@ -47,7 +47,10 @@ class Document {
         }
     }
 
-    public function upsert () {
+    public function upsert ($document=false) {
+        if ($document !== false) {
+            $this->document = $document;
+        }
         $documentIdRetained = false;
         if (isset($this->document['_id'])) {
             $documentIdRetained = $this->document['_id'];
@@ -105,6 +108,7 @@ class Document {
         } else {
             $this->document['_id'] = $this->db->id($this->embeddedId);
             if ($this->embeddedMode == 'update') {
+                $this->document = array_merge($check, $this->document);
                 $result = $this->db->collection($this->collection)->update(
                     ['_id' => $this->db->id($this->id)], 
                     ['$set' => [$this->embeddedPath => (array)$this->document]], 
