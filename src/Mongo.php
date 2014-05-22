@@ -107,7 +107,11 @@ class Mongo {
                 if ($assoc === true) {
                     $rows[(string)$tmp[$key]] = [];
                     foreach ($value as $val) {
-                        $rows[trim((string)$tmp[$key])][trim($val)] =  $tmp[$val];
+                        if (!isset($tmp[$val])) {
+                            $rows[trim((string)$tmp[$key])][$val] = null;
+                            continue;
+                        }
+                        $rows[trim((string)$tmp[$key])][trim($val)] = $tmp[$val];
                     }
                 } else {
                     foreach ($value as $val) {
