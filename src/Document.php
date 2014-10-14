@@ -103,7 +103,7 @@ class Document {
             $result = $this->db->collection($this->collection)->update(
                 ['_id' => $this->db->id($this->id)], 
                 ['$set' => (array)$this->document], 
-                ['safe' => true, 'fsync' => true, 'upsert' => true]
+                ['w' => true, 'fsync' => true, 'upsert' => true]
             );
         } else {
             $this->document['_id'] = $this->db->id($this->embeddedId);
@@ -112,7 +112,7 @@ class Document {
                 $result = $this->db->collection($this->collection)->update(
                     ['_id' => $this->db->id($this->id)], 
                     ['$set' => [$this->embeddedPath => (array)$this->document]], 
-                    ['safe' => true, 'fsync' => true, 'upsert' => true]
+                    ['w' => true, 'fsync' => true, 'upsert' => true]
                 );
             } elseif ($this->embeddedMode == 'insert') {
                 $embeddedPath = $this->embeddedPath;
@@ -122,7 +122,7 @@ class Document {
                 $result = $this->db->collection($this->collection)->update(
                     ['_id' => $this->db->id($this->id)], 
                     ['$push' => [$embeddedPath => (array)$this->document]], 
-                    ['safe' => true, 'fsync' => true, 'upsert' => true]
+                    ['w' => true, 'fsync' => true, 'upsert' => true]
                 );
             }
         }
