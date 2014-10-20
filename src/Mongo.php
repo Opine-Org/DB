@@ -23,6 +23,12 @@
  * THE SOFTWARE.
  */
 namespace Opine;
+use Exception;
+use MongoCollection;
+use MongoId;
+use MongoClient;
+use MongoDB;
+use MongoCode;
 
 class Mongo {
     private $client;
@@ -37,8 +43,8 @@ class Mongo {
 
     private function connect () {
         if (self::$db === false) {
-            $this->client = new \MongoClient($this->config->db['conn']);
-            self::$db = new \MongoDB($this->client, $this->config->db['name']);
+            $this->client = new MongoClient($this->config->db['conn']);
+            self::$db = new MongoDB($this->client, $this->config->db['name']);
         }
     }
 
@@ -49,7 +55,7 @@ class Mongo {
 
     public function collection ($collection) {
         $this->connect();
-        return new \MongoCollection(self::$db, $collection);
+        return new MongoCollection(self::$db, $collection);
     }
 
     public function each ($cursor, $callback) {
@@ -60,18 +66,18 @@ class Mongo {
 
     public function id ($id=false) {
         if ($id===false) {
-            return new \MongoId();
+            return new MongoId();
         }
-        return new \MongoId((string)$id);
+        return new MongoId((string)$id);
     }
 
     public function mapReduce ($map, $reduce, Array $command, &$response=[], $fetch=true) {
         $this->connect();
-        $command['map'] = new \MongoCode($map);
-        $command['reduce'] = new \MongoCode($reduce);
+        $command['map'] = new MongoCode($map);
+        $command['reduce'] = new MongoCode($reduce);
         $response = self::$db->command($command);
         if ($response['ok'] != 1) {
-            throw new \Exception(print_r($response, true));
+            throw new Exception(print_r($response, true));
         }
         if (!$fetch) {
             return true;    

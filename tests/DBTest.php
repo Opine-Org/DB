@@ -1,7 +1,8 @@
 <?php
 namespace Opine;
+use PHPUnit_Framework_TestCase;
 
-class DBTest extends \PHPUnit_Framework_TestCase {
+class DBTest extends PHPUnit_Framework_TestCase {
     private $db;
 
     public function setup () {

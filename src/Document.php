@@ -23,6 +23,8 @@
  * THE SOFTWARE.
  */
 namespace Opine;
+use MongoDate;
+use Exception;
 
 class Document {
     private $collection;
@@ -56,8 +58,7 @@ class Document {
             $documentIdRetained = $this->document['_id'];
             unset ($this->document['_id']);
         }
-        //if (isset($this->document['id'])) { unset ($this->document['id']); }
-        
+
         //user id
         $user = false;
         if (isset($_SESSION['user']) && isset($_SESSION['user']['_id'])) {
@@ -72,17 +73,17 @@ class Document {
         }
         $this->document['dbURI'] = $this->dbURI;
         if (isset($check['_id'])) {
-            $this->document['modified_date'] = new \MongoDate(strtotime('now'));
+            $this->document['modified_date'] = new MongoDate(strtotime('now'));
             if (!isset($this->document['created_date'])) {
                 $dateId = $this->db->id($this->id);
-                $this->document['created_date'] = new \MongoDate($dateId->getTimestamp());
+                $this->document['created_date'] = new MongoDate($dateId->getTimestamp());
             }
             if ($user !== false) {
                 $this->document['modified_user'] = $this->db->id($user);
             }
             $this->document['revision'] = (isset($check['revision']) ? ($check['revision'] + 1) : 1);
         } else {
-            $this->document['created_date'] = new \MongoDate(strtotime('now'));
+            $this->document['created_date'] = new MongoDate(strtotime('now'));
             $this->document['modified_date'] = $this->document['created_date'];
             $this->document['revision'] = 1;
             if ($user !== false) {
@@ -108,7 +109,7 @@ class Document {
         } else {
             $this->document['_id'] = $this->db->id($this->embeddedId);
             if ($this->embeddedMode == 'update') {
-                $this->document = array_merge($check, $this->document);
+                $this->document = array_merge((array)$check, (array)$this->document);
                 $result = $this->db->collection($this->collection)->update(
                     ['_id' => $this->db->id($this->id)], 
                     ['$set' => [$this->embeddedPath => (array)$this->document]], 
@@ -136,7 +137,7 @@ class Document {
 
             //attempt indexing
             $searchIndexContext = [
-                'type' => $this->collection,
+                'collection' => $this->collection,
                 'id' => (string)$this->id
             ];
             $this->topic->publish('searchIndexUpsert', $searchIndexContext);
@@ -169,7 +170,7 @@ class Document {
             );
         }
         $searchIndexContext = [
-            'type' => $this->collection,
+            'collection' => $this->collection,
             'id' => (string)$this->id
         ];
         $this->topic->publish('searchIndexDelete', $searchIndexContext);
@@ -188,9 +189,6 @@ class Document {
             }
         }
         $document = $this->db->collection($this->collection)->findOne(['_id' => $this->db->id($id)], $filter);
-        if (!isset($document['_id'])) {
-            return [];
-        }
         $partCount = count($parts);
         if ($partCount == 0) {
             return $document;
@@ -205,7 +203,7 @@ class Document {
             $hit = false;
             for ($j=0; $j < count($document[$key]); $j++) {
                 if (!isset($document[$key][$j]) || !isset($document[$key][$j]['_id'])) {
-                    break;
+                    continue;
                 }
                 if ($value == (string)$document[$key][$j]['_id']) {
                     $hit = true;
@@ -242,7 +240,7 @@ class Document {
         $out = '';
         $document = $this->db->collection($this->collection)->findOne(['_id' => $this->db->id($this->id)], [$parts[0]]);
         if (!isset($document['_id'])) {
-            throw new \Exception('Can not find root document: ' . $this->collection . ':' . $this->id . ':' . $parts[0]);
+            throw new Exception('Can not find root document: ' . $this->collection . ':' . $this->id . ':' . $parts[0]);
         }
         $partCount = count($parts);
         for ($i=0; $i < $partCount; $i++) {
@@ -254,15 +252,16 @@ class Document {
                 $out .= '0.';
                 $this->embeddedMode = 'insert';
                 $document = [];
-                break;
+                continue;
             }
             $hit = false;
             for ($j=0; $j < count($document[$key]); $j++) {
                 if (!isset($document[$key][$j]) || !isset($document[$key][$j]['_id'])) {
                     $this->embeddedMode = 'insert';
-                    break;
+                    continue;
                 }
                 if ($value == (string)$document[$key][$j]['_id']) {
+                    $this->embeddedMode = 'update';
                     $hit = true;
                     $out .= $j . '.';
                     $document = $document[$key][$j];
@@ -277,7 +276,7 @@ class Document {
             }
         }
         if ($partCount != count(explode('.', trim($out, '.')))) {
-            throw new \Exception('Mis-matched embedded document query');
+            throw new Exception('Mis-matched embedded document query');
         }
         $this->embeddedDocument = $document;
         $this->embeddedId = array_pop($parts);
