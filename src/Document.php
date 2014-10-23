@@ -25,6 +25,7 @@
 namespace Opine;
 use MongoDate;
 use Exception;
+use Opine\Framework;
 
 class Document {
     private $collection;
@@ -60,10 +61,7 @@ class Document {
         }
 
         //user id
-        $user = false;
-        if (isset($_SESSION['user']) && isset($_SESSION['user']['_id'])) {
-            $user = $_SESSION['user']['_id'];
-        }
+        $userId = Framework::keyGet('user_id');
 
         //handle modification / version history
         if ($this->embeddedPath === false) {
@@ -78,16 +76,16 @@ class Document {
                 $dateId = $this->db->id($this->id);
                 $this->document['created_date'] = new MongoDate($dateId->getTimestamp());
             }
-            if ($user !== false) {
-                $this->document['modified_user'] = $this->db->id($user);
+            if ($userId !== false) {
+                $this->document['modified_user'] = $this->db->id($userId);
             }
             $this->document['revision'] = (isset($check['revision']) ? ($check['revision'] + 1) : 1);
         } else {
             $this->document['created_date'] = new MongoDate(strtotime('now'));
             $this->document['modified_date'] = $this->document['created_date'];
             $this->document['revision'] = 1;
-            if ($user !== false) {
-                $this->document['created_user'] = $this->db->id($user);
+            if ($userId !== false) {
+                $this->document['created_user'] = $this->db->id($userId);
                 $this->document['modified_user'] = $this->document['created_user'];
             }
         }
