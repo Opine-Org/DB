@@ -10,10 +10,10 @@
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -100,8 +100,8 @@ class Document {
         }
         if ($this->embeddedPath === false) {
             $result = $this->db->collection($this->collection)->update(
-                ['_id' => $this->db->id($this->id)], 
-                ['$set' => (array)$this->document], 
+                ['_id' => $this->db->id($this->id)],
+                ['$set' => (array)$this->document],
                 ['w' => true, 'fsync' => true, 'upsert' => true]
             );
         } else {
@@ -109,8 +109,8 @@ class Document {
             if ($this->embeddedMode == 'update') {
                 $this->document = array_merge((array)$check, (array)$this->document);
                 $result = $this->db->collection($this->collection)->update(
-                    ['_id' => $this->db->id($this->id)], 
-                    ['$set' => [$this->embeddedPath => (array)$this->document]], 
+                    ['_id' => $this->db->id($this->id)],
+                    ['$set' => [$this->embeddedPath => (array)$this->document]],
                     ['w' => true, 'fsync' => true, 'upsert' => true]
                 );
             } elseif ($this->embeddedMode == 'insert') {
@@ -119,8 +119,8 @@ class Document {
                 array_pop($embeddedPath);
                 $embeddedPath = implode('.', $embeddedPath);
                 $result = $this->db->collection($this->collection)->update(
-                    ['_id' => $this->db->id($this->id)], 
-                    ['$push' => [$embeddedPath => (array)$this->document]], 
+                    ['_id' => $this->db->id($this->id)],
+                    ['$push' => [$embeddedPath => (array)$this->document]],
                     ['w' => true, 'fsync' => true, 'upsert' => true]
                 );
             }

@@ -10,10 +10,10 @@
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -29,6 +29,7 @@ use MongoId;
 use MongoClient;
 use MongoDB;
 use MongoCode;
+use MongoDate;
 
 class Mongo {
     private $client;
@@ -80,7 +81,7 @@ class Mongo {
             throw new Exception(print_r($response, true));
         }
         if (!$fetch) {
-            return true;    
+            return true;
         }
         $collection = false;
         if (isset($command['out'])) {
@@ -132,5 +133,16 @@ class Mongo {
             }
         }
         return $rows;
+    }
+
+    public function date ($dateString=false) {
+        if ($dateString === false) {
+            $dateString = strtotime('now');
+        } else {
+            if (!is_numeric($dateString)) {
+                $dateString = strtotime($dateString);
+            }
+        }
+        return new MongoDate($dateString);
     }
 }
