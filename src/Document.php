@@ -25,8 +25,9 @@
 namespace Opine\DB;
 use MongoDate;
 use Exception;
+use Opine\Interfaces\DBDocument as DBDocumentInterface;
 
-class Document {
+class Document implements DBDocumentInterface {
     private $collection;
     private $document;
     private $db;
@@ -76,8 +77,8 @@ class Document {
         $this->increment($field, $value);
     }
 
-    public function upsert ($document=false) {
-        if ($document !== false) {
+    public function upsert (Array $document=[]) {
+        if (!empty($document)) {
             $this->document = $document;
         }
         $documentIdRetained = false;
@@ -249,7 +250,7 @@ class Document {
         return $this->id;
     }
 
-    public function __get ($field) {
+    public function get ($field) {
         if (!isset($this->document[$field])) {
             return false;
         }
