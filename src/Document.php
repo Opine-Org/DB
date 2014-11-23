@@ -34,12 +34,13 @@ class Document {
     private $dbURI;
     private $topic;
     private $embedded = false;
-    private $embeddedPath = false;
+    private $embeddedPath = '';
     private $embeddedId = false;
     private $embeddedDocument = [];
     private $embeddedCollection = [];
     private $embeddedMode = 'update';
     private $userId = false;
+    private $writeOptions = ['w' => true, 'fsync' => true, 'upsert' => true];
 
     public function __construct ($db, $dbURI, $document, $topic, $userId) {
         $this->db = $db;
@@ -47,7 +48,6 @@ class Document {
         $this->topic = $topic;
         $this->dbURI = $dbURI;
         $this->userId = $userId;
-        $this->writeOptions = ['w' => true, 'fsync' => true, 'upsert' => true];
         list($this->collection, $this->id) = explode(':', $dbURI, 2);
         if (substr_count($this->id, ':') > 0) {
             $this->embedded = true;
@@ -60,8 +60,8 @@ class Document {
             $this->document[$field] = 0;
         }
         $this->document[$field] += $value;
-        if ($this->embeddedPath !== false) {
-            $field = $this->embeddedPath . '.' . $field;
+        if ($this->embeddedPath !== '') {
+            $field = $this->embeddedPath . '' . $field;
         }
         $result = $this->db->collection($this->collection)->update(
             ['_id' => $this->db->id($this->id)],
@@ -87,7 +87,7 @@ class Document {
         }
 
         //handle modification / version history
-        if ($this->embeddedPath === false) {
+        if ($this->embeddedPath === '') {
             $check = $this->db->collection($this->collection)->findOne(['_id' => $this->db->id($this->id)]);
         } else {
             $check = $this->embeddedDocument;
@@ -121,7 +121,8 @@ class Document {
         if (!isset($this->document['featured'])) {
             $this->document['featured'] = 'f';
         }
-        if ($this->embeddedPath === false) {
+        $result = false;
+        if ($this->embeddedPath === '') {
             $result = $this->db->collection($this->collection)->update(
                 ['_id' => $this->db->id($this->id)],
                 ['$set' => (array)$this->document],
@@ -172,7 +173,7 @@ class Document {
 
     public function remove () {
         $parts = [];
-        if ($this->embeddedPath !== false) {
+        if ($this->embeddedPath !== '') {
             $parts = explode('.', $this->embeddedPath);
         }
         $partCount = count($parts);
@@ -201,13 +202,14 @@ class Document {
     public function current () {
         $filter = [];
         $parts = [];
-        if (substr_count($this->dbURI, ':') > 0) {
-            $parts = explode(':', $this->dbURI);
-            $collection = array_shift($parts);
-            $id = array_shift($parts);
-            if (count($parts) > 0) {
-                $filter = [$parts[0]];
-            }
+        if (substr_count($this->dbURI, ':') == 0) {
+            throw new Exception('Invalude dbURI: ' . $this->dbURI);
+        }
+        $parts = explode(':', $this->dbURI);
+        $collection = array_shift($parts);
+        $id = array_shift($parts);
+        if (count($parts) > 0) {
+            $filter = [$parts[0]];
         }
         $document = $this->db->collection($this->collection)->findOne(['_id' => $this->db->id($id)], $filter);
         $partCount = count($parts);
