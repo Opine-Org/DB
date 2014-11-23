@@ -61,7 +61,7 @@ class Document {
         }
         $this->document[$field] += $value;
         if ($this->embeddedPath !== '') {
-            $field = $this->embeddedPath . '' . $field;
+            $field = $this->embeddedPath . '.' . $field;
         }
         $result = $this->db->collection($this->collection)->update(
             ['_id' => $this->db->id($this->id)],
