@@ -1,6 +1,6 @@
 <?php
 /**
- * Opine\Document
+ * Opine\DB\Document
  *
  * Copyright (c)2013, 2014 Ryan Mahoney, https://github.com/Opine-Org <ryan@virtuecenter.com>
  *
@@ -22,10 +22,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-namespace Opine;
+namespace Opine\DB;
 use MongoDate;
 use Exception;
-use Opine\Framework;
 
 class Document {
     private $collection;
@@ -34,20 +33,47 @@ class Document {
     private $id;
     private $dbURI;
     private $topic;
+    private $embedded = false;
     private $embeddedPath = false;
     private $embeddedId = false;
     private $embeddedDocument = [];
+    private $embeddedCollection = [];
     private $embeddedMode = 'update';
+    private $userId = false;
 
-    public function __construct ($db, $dbURI, $document, $topic) {
+    public function __construct ($db, $dbURI, $document, $topic, $userId) {
         $this->db = $db;
         $this->document = $document;
         $this->topic = $topic;
         $this->dbURI = $dbURI;
+        $this->userId = $userId;
+        $this->writeOptions = ['w' => true, 'fsync' => true, 'upsert' => true];
         list($this->collection, $this->id) = explode(':', $dbURI, 2);
         if (substr_count($this->id, ':') > 0) {
+            $this->embedded = true;
             $this->embeddedPath = $this->idToOffset();
         }
+    }
+
+    public function increment ($field, $value=1) {
+        if (!isset($this->document[$field])) {
+            $this->document[$field] = 0;
+        }
+        $this->document[$field] += $value;
+        if ($this->embeddedPath !== false) {
+            $field = $this->embeddedPath . '.' . $field;
+        }
+        $result = $this->db->collection($this->collection)->update(
+            ['_id' => $this->db->id($this->id)],
+            ['$inc' => [$field => $value]],
+            $this->writeOptions
+        );
+        return $result;
+    }
+
+    public function decrement ($field, $value=1) {
+        $value = abs($value) * -1;
+        $this->increment($field, $value);
     }
 
     public function upsert ($document=false) {
@@ -59,9 +85,6 @@ class Document {
             $documentIdRetained = $this->document['_id'];
             unset ($this->document['_id']);
         }
-
-        //user id
-        $userId = Framework::keyGet('user_id');
 
         //handle modification / version history
         if ($this->embeddedPath === false) {
@@ -76,16 +99,16 @@ class Document {
                 $dateId = $this->db->id($this->id);
                 $this->document['created_date'] = new MongoDate($dateId->getTimestamp());
             }
-            if ($userId !== false) {
-                $this->document['modified_user'] = $this->db->id($userId);
+            if ($this->userId !== false) {
+                $this->document['modified_user'] = $this->db->id($this->userId);
             }
             $this->document['revision'] = (isset($check['revision']) ? ($check['revision'] + 1) : 1);
         } else {
             $this->document['created_date'] = new MongoDate(strtotime('now'));
             $this->document['modified_date'] = $this->document['created_date'];
             $this->document['revision'] = 1;
-            if ($userId !== false) {
-                $this->document['created_user'] = $this->db->id($userId);
+            if ($this->userId !== false) {
+                $this->document['created_user'] = $this->db->id($this->userId);
                 $this->document['modified_user'] = $this->document['created_user'];
             }
         }
@@ -102,7 +125,7 @@ class Document {
             $result = $this->db->collection($this->collection)->update(
                 ['_id' => $this->db->id($this->id)],
                 ['$set' => (array)$this->document],
-                ['w' => true, 'fsync' => true, 'upsert' => true]
+                $this->writeOptions
             );
         } else {
             $this->document['_id'] = $this->db->id($this->embeddedId);
@@ -111,7 +134,7 @@ class Document {
                 $result = $this->db->collection($this->collection)->update(
                     ['_id' => $this->db->id($this->id)],
                     ['$set' => [$this->embeddedPath => (array)$this->document]],
-                    ['w' => true, 'fsync' => true, 'upsert' => true]
+                    $this->writeOptions
                 );
             } elseif ($this->embeddedMode == 'insert') {
                 $embeddedPath = $this->embeddedPath;
@@ -121,7 +144,7 @@ class Document {
                 $result = $this->db->collection($this->collection)->update(
                     ['_id' => $this->db->id($this->id)],
                     ['$push' => [$embeddedPath => (array)$this->document]],
-                    ['w' => true, 'fsync' => true, 'upsert' => true]
+                    $this->writeOptions
                 );
             }
         }
@@ -240,29 +263,41 @@ class Document {
         if (!isset($document['_id'])) {
             throw new Exception('Can not find root document: ' . $this->collection . ':' . $this->id . ':' . $parts[0]);
         }
-        $partCount = count($parts);
-        for ($i=0; $i < $partCount; $i++) {
+        $partsCount = count($parts);
+        for ($i=0; $i < $partsCount; $i++) {
             $key = $parts[$i];
-            $i++;
-            $value = $parts[$i];
             $out .= $key . '.';
+            $i++;
+            if (isset($parts[$i])) {
+                $value = $parts[$i];
+            } else {
+                $value = false;
+            }
             if (!isset($document[$key]) || !is_array($document[$key])) {
                 $out .= '0.';
+                $this->embeddedCollection = [];
                 $this->embeddedMode = 'insert';
                 $document = [];
                 continue;
             }
             $hit = false;
-            for ($j=0; $j < count($document[$key]); $j++) {
-                if (!isset($document[$key][$j]) || !isset($document[$key][$j]['_id'])) {
+            $this->embeddedCollection = $document[$key];
+            $embeddedCount = count($this->embeddedCollection);
+            for ($j=0; $j < $embeddedCount; $j++) {
+                if (!isset($this->embeddedCollection[$j]) || !isset($this->embeddedCollection[$j]['_id'])) {
                     $this->embeddedMode = 'insert';
                     continue;
                 }
-                if ($value == (string)$document[$key][$j]['_id']) {
+                if ($value === false) {
+                    $this->embeddedMode = 'insert';
+                    $out .= $embeddedCount . '.';
+                    break 2;
+                }
+                if ($value == (string)$this->embeddedCollection[$j]['_id']) {
                     $this->embeddedMode = 'update';
                     $hit = true;
                     $out .= $j . '.';
-                    $document = $document[$key][$j];
+                    $document = $this->embeddedCollection[$j];
                     break;
                 }
             }
@@ -273,11 +308,42 @@ class Document {
                 break;
             }
         }
-        if ($partCount != count(explode('.', trim($out, '.')))) {
-            throw new Exception('Mis-matched embedded document query');
-        }
         $this->embeddedDocument = $document;
         $this->embeddedId = array_pop($parts);
         return substr($out, 0, -1);
+    }
+
+    public function checkByCriteria (array $criteria) {
+        $matches = [];
+        $criteriaCount = count($criteria);
+        foreach ($this->embeddedCollection as $embeddedDocument) {
+            $hits = 0;
+            foreach ($criteria as $key => $value) {
+                if (!isset($embeddedDocument[$key])) {
+                    continue;
+                }
+                if (is_scalar($value) || is_object($value)) {
+                    if ($value == $embeddedDocument[$key]) {
+                        $hits++;
+                        continue;
+                    }
+                } elseif (is_array($value)) {
+                    $testA = json_encode($value);
+                    $testB = json_encode($embeddedDocument[$key]);
+                    if ($testA == $testB) {
+                        $hits++;
+                    }
+                } else {
+                    throw new Exception('unknown criteria type');
+                }
+            }
+            if ($hits == $criteriaCount) {
+                $matches[] = $embeddedDocument;
+            }
+        }
+        if (count($matches) == 0) {
+            return false;
+        }
+        return $matches;
     }
 }

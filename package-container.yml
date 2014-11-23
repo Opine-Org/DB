@@ -1,7 +1,7 @@
 services:
     db:
-        class:     'Opine\Mongo'
-        arguments: ['@config', '@topic']
+        class:     'Opine\DB\Mongo'
+        arguments: ['config.db', '@topic']
     dbmigration:
-        class:     'Opine\Migration'
+        class:     'Opine\DB\Migration'
         arguments: ['@db']

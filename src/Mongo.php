@@ -1,6 +1,6 @@
 <?php
 /**
- * Opine\DB
+ * Opine\DB\Mongo
  *
  * Copyright (c)2013, 2014 Ryan Mahoney, https://github.com/Opine-Org <ryan@virtuecenter.com>
  *
@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-namespace Opine;
+namespace Opine\DB;
 use Exception;
 use MongoCollection;
 use MongoId;
@@ -30,22 +30,34 @@ use MongoClient;
 use MongoDB;
 use MongoCode;
 use MongoDate;
+use MongoCursor;
+use Closure;
+use Opine\Interfaces\DB as DbInterface;
+use Opine\Interfaces\Topic as TopicInterface;
 
-class Mongo {
+class Mongo implements DbInterface {
     private $client;
     private static $db = false;
-    private $config;
     private $topic;
+    private $userId = false;
+    private $dbName;
+    private $dbConn;
 
-    public function __construct ($config, $topic) {
-        $this->config = $config;
+    public function __construct (Array $config, TopicInterface $topic) {
+        $this->dbName = $config['name'];
+        $this->dbConn = $config['conn'];
         $this->topic = $topic;
+    }
+
+    public function userIdSet ($userId) {
+        $this->userId = $userId;
+        return true;
     }
 
     private function connect () {
         if (self::$db === false) {
-            $this->client = new MongoClient($this->config->db['conn']);
-            self::$db = new MongoDB($this->client, $this->config->db['name']);
+            $this->client = new MongoClient($this->dbConn);
+            self::$db = new MongoDB($this->client, $this->dbName);
         }
     }
 
@@ -59,10 +71,11 @@ class Mongo {
         return new MongoCollection(self::$db, $collection);
     }
 
-    public function each ($cursor, $callback) {
+    public function each (MongoCursor $cursor, Closure $callback) {
         while ($cursor->hasNext()) {
             $callback($cursor->getNext());
         }
+        return true;
     }
 
     public function id ($id=false) {
@@ -93,11 +106,11 @@ class Mongo {
         return $this->collection($collection);
     }
 
-    public function documentStage ($dbURI, $document=[]) {
-        return new Document($this, $dbURI, $document, $this->topic);
+    public function document ($dbURI, $document=[]) {
+        return new Document($this, $dbURI, $document, $this->topic, $this->userId);
     }
 
-    public function distinct($collection, $key, array $query=[]) {
+    public function distinct ($collection, $key, array $query=[]) {
         if (empty($query)) {
             $query = [];
         }
@@ -106,7 +119,7 @@ class Mongo {
         return $result['values'];
     }
 
-    public function fetchAllGrouped ($cursor, $key, $value, $assoc=false) {
+    public function fetchAllGrouped (MongoCursor $cursor, $key, $value, $assoc=false) {
         $rows = [];
         while ($cursor->hasNext()) {
             $tmp = $cursor->getNext();
@@ -129,6 +142,9 @@ class Mongo {
             } elseif (is_callable($value)) {
                 $rows[trim((string)$tmp[$key])] = $value($tmp);
             } else {
+                if (!isset($tmp[$key]) || !isset($tmp[$value])) {
+                    continue;
+                }
                 $rows[trim((string)$tmp[$key])] = (string)$tmp[$value];
             }
         }
