@@ -23,8 +23,10 @@
  * THE SOFTWARE.
  */
 namespace Opine\DB;
+
 use MongoDate;
 use Exception;
+use ArrayObject;
 use Opine\Interfaces\DBDocument as DBDocumentInterface;
 
 class Document implements DBDocumentInterface {
@@ -159,10 +161,10 @@ class Document implements DBDocumentInterface {
             ]);
 
             //attempt indexing
-            $searchIndexContext = [
+            $searchIndexContext = new ArrayObject([
                 'collection' => $this->collection,
                 'id' => (string)$this->id
-            ];
+            ]);
             $this->topic->publish('searchIndexUpsert', $searchIndexContext);
         }
 
