@@ -1,6 +1,0 @@
-imports:
-    - 'package-container.yml'
-    - 'vendor/opine/cache/package-container.yml'
-    - 'vendor/opine/config/package-container.yml'
-    - 'vendor/opine/container/package-container.yml'
-    - 'vendor/opine/pubsub/package-container.yml'
