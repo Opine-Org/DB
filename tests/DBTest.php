@@ -1,5 +1,6 @@
 <?php
 namespace Opine\DB;
+
 use Opine\Container\Service as Container;
 use PHPUnit_Framework_TestCase;
 use Opine\Config\Service as Config;
@@ -8,7 +9,6 @@ class DBTest extends PHPUnit_Framework_TestCase {
     private $db;
 
     public function setup () {
-        date_default_timezone_set('UTC');
         $root = __DIR__ . '/../public';
         $config = new Config($root);
         $config->cacheSet();
