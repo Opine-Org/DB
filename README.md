@@ -1,3 +1,4 @@
+[![Stories in Ready](https://badge.waffle.io/opine-org/db.png?label=ready&title=Ready)](https://waffle.io/opine-org/db)
 DB
 ==
 
