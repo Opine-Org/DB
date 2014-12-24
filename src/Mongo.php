@@ -23,6 +23,7 @@
  * THE SOFTWARE.
  */
 namespace Opine\DB;
+
 use Exception;
 use MongoCollection;
 use MongoId;
@@ -35,7 +36,8 @@ use Closure;
 use Opine\Interfaces\DB as DbInterface;
 use Opine\Interfaces\Topic as TopicInterface;
 
-class Mongo implements DbInterface {
+class Mongo implements DbInterface
+{
     private $client;
     private static $db = false;
     private $topic;
@@ -43,49 +45,62 @@ class Mongo implements DbInterface {
     private $dbName;
     private $dbConn;
 
-    public function __construct (Array $config, TopicInterface $topic) {
+    public function __construct(Array $config, TopicInterface $topic)
+    {
         $this->dbName = $config['name'];
         $this->dbConn = $config['conn'];
         $this->topic = $topic;
     }
 
-    public function userIdSet ($userId) {
+    public function userIdSet($userId)
+    {
         $this->userId = $userId;
+
         return true;
     }
 
-    private function connect () {
+    private function connect()
+    {
         if (self::$db === false) {
             $this->client = new MongoClient($this->dbConn);
             self::$db = new MongoDB($this->client, $this->dbName);
         }
     }
 
-    public function collectionList ($system=false) {
+    public function collectionList($system = false)
+    {
         $this->connect();
+
         return self::$db->listCollections($system);
     }
 
-    public function collection ($collection) {
+    public function collection($collection)
+    {
         $this->connect();
+
         return new MongoCollection(self::$db, $collection);
     }
 
-    public function each (MongoCursor $cursor, Closure $callback) {
+    public function each(MongoCursor $cursor, Closure $callback)
+    {
         while ($cursor->hasNext()) {
             $callback($cursor->getNext());
         }
+
         return true;
     }
 
-    public function id ($id=false) {
-        if ($id===false) {
+    public function id($id = false)
+    {
+        if ($id === false) {
             return new MongoId();
         }
-        return new MongoId((string)$id);
+
+        return new MongoId((string) $id);
     }
 
-    public function mapReduce ($map, $reduce, Array $command, &$response=[], $fetch=true) {
+    public function mapReduce($map, $reduce, Array $command, &$response = [], $fetch = true)
+    {
         $this->connect();
         $command['map'] = new MongoCode($map);
         $command['reduce'] = new MongoCode($reduce);
@@ -103,55 +118,62 @@ class Mongo implements DbInterface {
         if ($collection === false) {
             return true;
         }
+
         return $this->collection($collection);
     }
 
-    public function document ($dbURI, $document=[]) {
+    public function document($dbURI, $document = [])
+    {
         return new Document($this, $dbURI, $document, $this->topic, $this->userId);
     }
 
-    public function distinct ($collection, $key, array $query=[]) {
+    public function distinct($collection, $key, array $query = [])
+    {
         if (empty($query)) {
             $query = [];
         }
         $this->connect();
         $result = self::$db->command(['distinct' => $collection, 'key' => $key, 'query' => $query]);
+
         return $result['values'];
     }
 
-    public function fetchAllGrouped (MongoCursor $cursor, $key, $value, $assoc=false) {
+    public function fetchAllGrouped(MongoCursor $cursor, $key, $value, $assoc = false)
+    {
         $rows = [];
         while ($cursor->hasNext()) {
             $tmp = $cursor->getNext();
             if (is_array($value)) {
                 if ($assoc === true) {
-                    $rows[(string)$tmp[$key]] = [];
+                    $rows[(string) $tmp[$key]] = [];
                     foreach ($value as $val) {
                         if (!isset($tmp[$val])) {
-                            $rows[trim((string)$tmp[$key])][$val] = null;
+                            $rows[trim((string) $tmp[$key])][$val] = null;
                             continue;
                         }
-                        $rows[trim((string)$tmp[$key])][trim($val)] = $tmp[$val];
+                        $rows[trim((string) $tmp[$key])][trim($val)] = $tmp[$val];
                     }
                 } else {
                     foreach ($value as $val) {
-                        $rows[trim((string)$tmp[$key])] .= (string)$tmp[$val] . ' ';
+                        $rows[trim((string) $tmp[$key])] .= (string) $tmp[$val].' ';
                     }
-                    $rows[trim((string)$tmp[$key])] = trim($rows[(string)$tmp[$key]]);
+                    $rows[trim((string) $tmp[$key])] = trim($rows[(string) $tmp[$key]]);
                 }
             } elseif (is_callable($value)) {
-                $rows[trim((string)$tmp[$key])] = $value($tmp);
+                $rows[trim((string) $tmp[$key])] = $value($tmp);
             } else {
                 if (!isset($tmp[$key]) || !isset($tmp[$value])) {
                     continue;
                 }
-                $rows[trim((string)$tmp[$key])] = (string)$tmp[$value];
+                $rows[trim((string) $tmp[$key])] = (string) $tmp[$value];
             }
         }
+
         return $rows;
     }
 
-    public function date ($dateString=false) {
+    public function date($dateString = false)
+    {
         if ($dateString === false) {
             $dateString = strtotime('now');
         } else {
@@ -159,6 +181,7 @@ class Mongo implements DbInterface {
                 $dateString = strtotime($dateString);
             }
         }
+
         return new MongoDate($dateString);
     }
 }

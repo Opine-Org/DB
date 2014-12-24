@@ -29,7 +29,8 @@ use Exception;
 use ArrayObject;
 use Opine\Interfaces\DBDocument as DBDocumentInterface;
 
-class Document implements DBDocumentInterface {
+class Document implements DBDocumentInterface
+{
     private $collection;
     private $document;
     private $db;
@@ -45,7 +46,8 @@ class Document implements DBDocumentInterface {
     private $userId = false;
     private $writeOptions = ['w' => true, 'fsync' => true, 'upsert' => true];
 
-    public function __construct ($db, $dbURI, $document, $topic, $userId) {
+    public function __construct($db, $dbURI, $document, $topic, $userId)
+    {
         $this->db = $db;
         $this->document = $document;
         $this->topic = $topic;
@@ -58,35 +60,39 @@ class Document implements DBDocumentInterface {
         }
     }
 
-    public function increment ($field, $value=1) {
+    public function increment($field, $value = 1)
+    {
         if (!isset($this->document[$field])) {
             $this->document[$field] = 0;
         }
         $this->document[$field] += $value;
         if ($this->embeddedPath !== '') {
-            $field = $this->embeddedPath . '.' . $field;
+            $field = $this->embeddedPath.'.'.$field;
         }
         $result = $this->db->collection($this->collection)->update(
             ['_id' => $this->db->id($this->id)],
             ['$inc' => [$field => $value]],
             $this->writeOptions
         );
+
         return $result;
     }
 
-    public function decrement ($field, $value=1) {
+    public function decrement($field, $value = 1)
+    {
         $value = abs($value) * -1;
         $this->increment($field, $value);
     }
 
-    public function upsert (Array $document=[]) {
+    public function upsert(Array $document = [])
+    {
         if (!empty($document)) {
             $this->document = $document;
         }
         $documentIdRetained = false;
         if (isset($this->document['_id'])) {
             $documentIdRetained = $this->document['_id'];
-            unset ($this->document['_id']);
+            unset($this->document['_id']);
         }
 
         //handle modification / version history
@@ -128,16 +134,16 @@ class Document implements DBDocumentInterface {
         if ($this->embeddedPath === '') {
             $result = $this->db->collection($this->collection)->update(
                 ['_id' => $this->db->id($this->id)],
-                ['$set' => (array)$this->document],
+                ['$set' => (array) $this->document],
                 $this->writeOptions
             );
         } else {
             $this->document['_id'] = $this->db->id($this->embeddedId);
             if ($this->embeddedMode == 'update') {
-                $this->document = array_merge((array)$check, (array)$this->document);
+                $this->document = array_merge((array) $check, (array) $this->document);
                 $result = $this->db->collection($this->collection)->update(
                     ['_id' => $this->db->id($this->id)],
-                    ['$set' => [$this->embeddedPath => (array)$this->document]],
+                    ['$set' => [$this->embeddedPath => (array) $this->document]],
                     $this->writeOptions
                 );
             } elseif ($this->embeddedMode == 'insert') {
@@ -147,7 +153,7 @@ class Document implements DBDocumentInterface {
                 $embeddedPath = implode('.', $embeddedPath);
                 $result = $this->db->collection($this->collection)->update(
                     ['_id' => $this->db->id($this->id)],
-                    ['$push' => [$embeddedPath => (array)$this->document]],
+                    ['$push' => [$embeddedPath => (array) $this->document]],
                     $this->writeOptions
                 );
             }
@@ -157,13 +163,13 @@ class Document implements DBDocumentInterface {
         if (isset($check['_id']) && isset($result['ok']) && $result['ok'] == true) {
             $this->db->collection('versions')->save([
                 'collection' => $this->collection,
-                'document' => $check
+                'document' => $check,
             ]);
 
             //attempt indexing
             $searchIndexContext = new ArrayObject([
                 'collection' => $this->collection,
-                'id' => (string)$this->id
+                'id' => (string) $this->id,
             ]);
             $this->topic->publish('searchIndexUpsert', $searchIndexContext);
         }
@@ -171,10 +177,12 @@ class Document implements DBDocumentInterface {
         if ($documentIdRetained !== false && !isset($this->document['_id'])) {
             $this->document['_id'] = $documentIdRetained;
         }
+
         return $result;
     }
 
-    public function remove () {
+    public function remove()
+    {
         $parts = [];
         if ($this->embeddedPath !== '') {
             $parts = explode('.', $this->embeddedPath);
@@ -186,27 +194,29 @@ class Document implements DBDocumentInterface {
             array_pop($parts);
             $field = implode('.', $parts);
             $result = $this->db->collection($this->collection)->update([
-                    '_id' => $this->db->id($this->id)
+                    '_id' => $this->db->id($this->id),
                 ], [
                     '$pull' => [
-                        $field => ['_id' => $this->db->id($this->embeddedId)]
+                        $field => ['_id' => $this->db->id($this->embeddedId)],
                     ]
                 ]
             );
         }
         $searchIndexContext = [
             'collection' => $this->collection,
-            'id' => (string)$this->id
+            'id' => (string) $this->id,
         ];
         $this->topic->publish('searchIndexDelete', $searchIndexContext);
+
         return $result;
     }
 
-    public function current () {
+    public function current()
+    {
         $filter = [];
         $parts = [];
         if (substr_count($this->dbURI, ':') == 0) {
-            throw new Exception('Invalude dbURI: ' . $this->dbURI);
+            throw new Exception('Invalude dbURI: '.$this->dbURI);
         }
         $parts = explode(':', $this->dbURI);
         $collection = array_shift($parts);
@@ -219,7 +229,7 @@ class Document implements DBDocumentInterface {
         if ($partCount == 0) {
             return $document;
         }
-        for ($i=0; $i < $partCount; $i++) {
+        for ($i = 0; $i < $partCount; $i++) {
             $key = $parts[$i];
             $i++;
             $value = $parts[$i];
@@ -227,11 +237,11 @@ class Document implements DBDocumentInterface {
                 return [];
             }
             $hit = false;
-            for ($j=0; $j < count($document[$key]); $j++) {
+            for ($j = 0; $j < count($document[$key]); $j++) {
                 if (!isset($document[$key][$j]) || !isset($document[$key][$j]['_id'])) {
                     continue;
                 }
-                if ($value == (string)$document[$key][$j]['_id']) {
+                if ($value == (string) $document[$key][$j]['_id']) {
                     $hit = true;
                     $document = $document[$key][$j];
                     break;
@@ -241,37 +251,43 @@ class Document implements DBDocumentInterface {
                 return [];
             }
         }
+
         return $document;
     }
 
-    public function collection () {
+    public function collection()
+    {
         return $this->collection;
     }
 
-    public function id () {
+    public function id()
+    {
         return $this->id;
     }
 
-    public function get ($field) {
+    public function get($field)
+    {
         if (!isset($this->document[$field])) {
             return false;
         }
+
         return $this->document[$field];
     }
 
-    private function idToOffset () {
+    private function idToOffset()
+    {
         $parts = explode(':', $this->id);
         $this->id = array_shift($parts);
         $count = count($parts);
         $out = '';
         $document = $this->db->collection($this->collection)->findOne(['_id' => $this->db->id($this->id)], [$parts[0]]);
         if (!isset($document['_id'])) {
-            throw new Exception('Can not find root document: ' . $this->collection . ':' . $this->id . ':' . $parts[0]);
+            throw new Exception('Can not find root document: '.$this->collection.':'.$this->id.':'.$parts[0]);
         }
         $partsCount = count($parts);
-        for ($i=0; $i < $partsCount; $i++) {
+        for ($i = 0; $i < $partsCount; $i++) {
             $key = $parts[$i];
-            $out .= $key . '.';
+            $out .= $key.'.';
             $i++;
             if (isset($parts[$i])) {
                 $value = $parts[$i];
@@ -288,20 +304,20 @@ class Document implements DBDocumentInterface {
             $hit = false;
             $this->embeddedCollection = $document[$key];
             $embeddedCount = count($this->embeddedCollection);
-            for ($j=0; $j < $embeddedCount; $j++) {
+            for ($j = 0; $j < $embeddedCount; $j++) {
                 if (!isset($this->embeddedCollection[$j]) || !isset($this->embeddedCollection[$j]['_id'])) {
                     $this->embeddedMode = 'insert';
                     continue;
                 }
                 if ($value === false) {
                     $this->embeddedMode = 'insert';
-                    $out .= $embeddedCount . '.';
+                    $out .= $embeddedCount.'.';
                     break 2;
                 }
-                if ($value == (string)$this->embeddedCollection[$j]['_id']) {
+                if ($value == (string) $this->embeddedCollection[$j]['_id']) {
                     $this->embeddedMode = 'update';
                     $hit = true;
-                    $out .= $j . '.';
+                    $out .= $j.'.';
                     $document = $this->embeddedCollection[$j];
                     break;
                 }
@@ -309,16 +325,18 @@ class Document implements DBDocumentInterface {
             if ($hit == false) {
                 $this->embeddedMode = 'insert';
                 $document = [];
-                $out .= $j . '.';
+                $out .= $j.'.';
                 break;
             }
         }
         $this->embeddedDocument = $document;
         $this->embeddedId = array_pop($parts);
+
         return substr($out, 0, -1);
     }
 
-    public function checkByCriteria (array $criteria) {
+    public function checkByCriteria(array $criteria)
+    {
         $matches = [];
         $criteriaCount = count($criteria);
         foreach ($this->embeddedCollection as $embeddedDocument) {
@@ -349,6 +367,7 @@ class Document implements DBDocumentInterface {
         if (count($matches) == 0) {
             return false;
         }
+
         return $matches;
     }
 }

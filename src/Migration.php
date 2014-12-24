@@ -24,14 +24,17 @@
  */
 namespace Opine\DB;
 
-class Migration {
+class Migration
+{
     private $db;
 
-    public function __construct ($db)  {
+    public function __construct($db)
+    {
         $this->db = $db;
     }
 
-    public function addURI () {
+    public function addURI()
+    {
         $collections = $this->db->collectionList();
         foreach ($collections as $collection) {
             $collectionName = $collection->getName();
@@ -56,7 +59,7 @@ class Migration {
                 if (isset($doc['dbURI'])) {
                     return;
                 }
-                $dbURI = $collectionName . ':' . (string)$doc['_id'];
+                $dbURI = $collectionName.':'.(string) $doc['_id'];
                 $doc['dbURI'] = $dbURI;
                 foreach ($doc as $fieldName => &$field) {
                     if (!is_array($field) || is_object($field)) {
@@ -66,7 +69,7 @@ class Migration {
                         continue;
                     }
                     foreach ($field as &$embeddedDoc) {
-                        $embeddedDoc['dbURI'] = $doc['dbURI'] . ':' . $fieldName . ':' . (string)$embeddedDoc['_id'];
+                        $embeddedDoc['dbURI'] = $doc['dbURI'].':'.$fieldName.':'.(string) $embeddedDoc['_id'];
                         foreach ($embeddedDoc as $fieldName2 => &$field2) {
                             if (!is_array($field2)) {
                                 continue;
@@ -75,7 +78,7 @@ class Migration {
                                 continue;
                             }
                             foreach ($field2 as &$embeddedDoc2) {
-                                $embeddedDoc2['dbURI'] = $embeddedDoc['dbURI'] . ':' . $embeddedFieldName . ':' . (string)$embeddedDoc2['_id'];
+                                $embeddedDoc2['dbURI'] = $embeddedDoc['dbURI'].':'.$embeddedFieldName.':'.(string) $embeddedDoc2['_id'];
                             }
                         }
                     }
