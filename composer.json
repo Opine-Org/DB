@@ -15,10 +15,10 @@
     ],
     "require": {
         "php": ">=5.5.0",
-        "opine/pubsub": "dev-master",
+        "opine/pubsub": "2.0.0",
         "opine/interfaces": "1.0.0",
         "opine/config": "3.0.0",
-        "opine/container": "2.0.2"
+        "opine/container": "2.0.3"
     },
     "require-dev": {
         "phpunit/phpunit": "3.7.32"
@@ -27,5 +27,6 @@
         "psr-4": {
             "Opine\\DB\\": "src/"
         }
-    }
+    },
+    "version": "2.0.0"
 }
