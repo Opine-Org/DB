@@ -16,7 +16,7 @@
     "require": {
         "php": ">=5.5.0",
         "opine/pubsub": "dev-master",
-        "opine/interfaces": "dev-master",
+        "opine/interfaces": "1.0.0",
         "opine/config": "3.0.0",
         "opine/container": "dev-master"
     },
