@@ -1,6 +1,0 @@
-imports:
-    - 'package-container.yml'
-    - '../../cache/config/package-container.yml'
-    - '../../config/config/package-container.yml'
-    - '../../container/config/package-container.yml'
-    - '../../pubsub/config/package-container.yml'

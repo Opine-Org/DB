@@ -12,7 +12,7 @@ class DBTest extends PHPUnit_Framework_TestCase {
         $root = __DIR__ . '/../public';
         $config = new Config($root);
         $config->cacheSet();
-        $container = Container::instance($root, $config, $root . '/../config/container.yml');
+        $container = Container::instance($root, $config, $root . '/../config/containers/test-container.yml');
         $this->db = $container->get('db');
     }
 
@@ -21,7 +21,7 @@ class DBTest extends PHPUnit_Framework_TestCase {
         $root = __DIR__ . '/../public';
         $config = new Config($root);
         $config->cacheSet();
-        $container = Container::instance($root, $config, $root . '/../config/container.yml');
+        $container = Container::instance($root, $config, $root . '/../config/containers/test-container.yml');
         $db = $container->get('db');
         $dbURI = 'comments:546d255127987119148b4567';
         $db->document($dbURI, [
